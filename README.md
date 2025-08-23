@@ -85,13 +85,10 @@ We welcome contributions - please feel open an issue, or a pull request, if you 
 
 ## Citation
 ```bash
-@misc{chen2025dragdistillingragslms,
-      title={DRAG: Distilling RAG for SLMs from LLMs to Transfer Knowledge and Mitigate Hallucination via Evidence and Graph-based Distillation}, 
-      author={Jennifer Chen and Aidar Myrzakhan and Yaxin Luo and Hassaan Muhammad Khan and Sondos Mahmoud Bsharat and Zhiqiang Shen},
-      year={2025},
-      eprint={2506.01954},
-      archivePrefix={arXiv},
-      primaryClass={cs.CL},
-      url={https://arxiv.org/abs/2506.01954}, 
+@inproceedings{chen2025drag,
+      title={DRAG: Distilling RAG for SLMs from LLMs to Transfer Knowledge and Mitigate Hallucination via Evidence and Graph-based Distillation},
+      author={Chen, Jennifer and Myrzakhan, Aidar and Luo, Yaxin and Khan, Hassaan Muhammad and Bsharat, Sondos Mahmoud and Shen, Zhiqiang},
+      booktitle={Proceedings of the 63rd Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers)},
+      year={2025}
 }
 ```
