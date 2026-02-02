@@ -1,21 +1,29 @@
+import argparse
 import subprocess
 import sys
-import argparse
+from pathlib import Path
 
 parser = argparse.ArgumentParser()
+parser.add_argument("llm", help="LLM to be used")
+parser.add_argument("benchmark", help="Benchmark to be used")
+parser.add_argument(
+    "num_es",
+    help="Number of evidences/relationships to generate",
+)
 parser.add_argument("--multithread", action="store_true", help="Enable multithreading")
 args = parser.parse_args()
 
+script_dir = Path(__file__).resolve().parent
 commands = [
-    "python3 /root/llm-rag-retriever/1_generate_evidences.py",
-    "python3 /root/llm-rag-retriever/2_generate_evidence_rankings.py",
-    "python3 /root/llm-rag-retriever/3_generate_graph.py",
-    "python3 /root/llm-rag-retriever/4_generate_graph_rankings.py",
+    script_dir / "1_generate_evidences.py",
+    script_dir / "2_generate_evidence_rankings.py",
+    script_dir / "3_generate_graph.py",
+    script_dir / "4_generate_graph_rankings.py",
 ]
 
-llm = sys.argv[1]
-benchmark = sys.argv[2]
-num_es = sys.argv[3]
+llm = args.llm
+benchmark = args.benchmark
+num_es = args.num_es
 
 def generate_commands():
     """
@@ -31,12 +39,12 @@ def generate_commands():
     """
     all_commands = []
     for command in commands:
-        command  = f'{command} {llm} {benchmark} {num_es}'
+        command_parts = [sys.executable, str(command), llm, benchmark, num_es]
 
         if args.multithread:
-            command += f" multithread"
+            command_parts.append("multithread")
 
-        all_commands.append(command)
+        all_commands.append(command_parts)
     return all_commands
 
 
@@ -47,7 +55,7 @@ def execute_commands(commands):
     for i, command in enumerate(commands, 1):
         try:
             print(f"\nExecuting command {i}/{len(commands)}: {command}")
-            result = subprocess.run(command, shell=True, check=True, text=True, capture_output=True)
+            result = subprocess.run(command, check=True, text=True, capture_output=True)
             print(f"Stdout:\n{result.stdout}")
         except subprocess.CalledProcessError as e:
             print(f"Command failed with error:\n{e.stderr}")
