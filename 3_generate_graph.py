@@ -17,7 +17,7 @@ ranking_file_name = f'evidences_final_{sys.argv[1]}_{sys.argv[2]}.csv'
 multigraph_file_name = f'multigraph_{sys.argv[1]}_{sys.argv[2]}.csv'
 graph_file_name = f'graph_{sys.argv[1]}_{sys.argv[2]}.csv'
 
-num_es = sys.argv[3]
+num_es = int(sys.argv[3])
 
 '''
 Start of program

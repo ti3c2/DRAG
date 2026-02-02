@@ -6,7 +6,7 @@ from collections import defaultdict
 import pandas as pd
 
 from semantic_distance_calculator import SemanticDistanceCalculator
-from utils import get_qs
+from utils import get_qs, get_question_text
 
 '''
 Params
@@ -16,7 +16,7 @@ graph_file_name = f'graph_{sys.argv[1]}_{sys.argv[2]}.csv'
 semantic_rank_file_name = f'graph_semantic_{sys.argv[1]}_{sys.argv[2]}2.csv'
 final_rank_file_name = f"graph_final_{sys.argv[1]}_{sys.argv[2]}2.csv"
 benchmark_questions = get_qs([], True, True)
-num_es = sys.argv[3]
+num_es = int(sys.argv[3])
 
 '''
 Start of Program
@@ -54,7 +54,7 @@ for qid, rels in relationships_dict.items():
         continue
 
     #Retrieve the original question text for computing semantic distance
-    question = benchmark_questions.loc[benchmark_questions['id'] == qid].iloc[0]['question']
+    question = get_question_text(benchmark_questions, qid)
 
     #Rank sentences based on semantic similarity to the question
     ranked_sentences = dist_calc.get_top_k_sentences(question, rels, num_es)
@@ -64,10 +64,10 @@ for qid, rels in relationships_dict.items():
         new_data.append([
             qid,
             sentence_to_llm_rank[sentence][0],
+            sentence,
             sentence_to_llm_rank[sentence][1],
             sentence_to_llm_rank[sentence][2],
-            sentence,
-            int(i+1) #semantic_rank
+            int(i + 1)  # semantic_rank
         ])
 
     new_df = pd.DataFrame(new_data)
@@ -116,5 +116,5 @@ for qid in q_to_rank:
         ])
 
 final_rank_header = ['question_id', 'final_rank', 'semantic_rank', 'llm_rank', 'entity1', 'entity2', 'relationship']
-new_df = pd.DataFrame(new_list)
-new_df.to_csv(final_rank_file_name, header=final_rank_header, encoding='utf-8', index=False)
+new_df = pd.DataFrame(new_list, columns=final_rank_header)
+new_df.to_csv(final_rank_file_name, header=True, encoding='utf-8', index=False)

@@ -3,11 +3,14 @@ import subprocess
 import sys
 from pathlib import Path
 
+from settings import settings
+
 parser = argparse.ArgumentParser()
-parser.add_argument("llm", help="LLM to be used")
+parser.add_argument("llm", default=settings.openai_model, help="LLM to be used")
 parser.add_argument("benchmark", help="Benchmark to be used")
 parser.add_argument(
     "num_es",
+    default=settings.num_es,
     help="Number of evidences/relationships to generate",
 )
 parser.add_argument("--multithread", action="store_true", help="Enable multithreading")
@@ -27,7 +30,7 @@ num_es = args.num_es
 
 def generate_commands():
     """
-    Generate all commands to be executed. The generated commands will execute the 
+    Generate all commands to be executed. The generated commands will execute the
     Python files responsible for generating the evidences and graph relationships.
 
     Command line argument 1: LLM to be used

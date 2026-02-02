@@ -231,7 +231,7 @@ def get_squad_small(existing_qs, include_all, as_df=False, fname="squad-50.csv")
     return get_squad(
         existing_qs=existing_qs,
         include_all=include_all,
-        as_df=False,
+        as_df=as_df,
         fname=fname,
     )
 
@@ -258,3 +258,18 @@ def get_qs(existing_qs, include_all, as_df=False):
         return get_squad(existing_qs, include_all, as_df)
     elif benchmark == "squad-small":
         return get_squad_small(existing_qs, include_all, as_df)
+
+def get_question_text(benchmark_questions, qid):
+    """
+    Returns the question text for a given question id from a benchmark DataFrame.
+    Handles differing column names across benchmarks.
+    """
+    if "id" in benchmark_questions.columns and "question" in benchmark_questions.columns:
+        return benchmark_questions.loc[benchmark_questions["id"] == qid].iloc[0]["question"]
+    if "query_id" in benchmark_questions.columns and "query_text" in benchmark_questions.columns:
+        return benchmark_questions.loc[benchmark_questions["query_id"] == qid].iloc[0][
+            "query_text"
+        ]
+    raise KeyError(
+        f"Unsupported benchmark schema. Columns: {list(benchmark_questions.columns)}"
+    )

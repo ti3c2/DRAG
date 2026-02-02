@@ -9,6 +9,7 @@ import requests
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 from dotenv import load_dotenv
 
+from settings import settings
 from utils import clean_list, clean_string
 
 # NOTE: Change MAX_RETRIES based on max number of attempts for calling APIs
@@ -203,13 +204,13 @@ class GPTRetriever(LanguageModel):
     def __init__(self, model="gpt-4o-mini"):
         from openai import OpenAI
 
-        model = os.getenv(f"OPENAI_MODEL", model)
+        model = settings.openai_model
         self.client = OpenAI(
-            api_key=os.environ["OPENAI_API_KEY"],
-            base_url=os.getenv("OPENAI_API_BASE"),
+            api_key=settings.openai_api_key,
+            base_url=settings.openai_api_base,
             http_client=(
-                httpx.Client(proxy=os.getenv("PROXY_URL"))
-                if os.getenv("OPENAI_USE_PROXY") == "1"
+                httpx.Client(proxy=settings.proxy_url)
+                if settings.openai_use_proxy
                 else None
             ),
         )

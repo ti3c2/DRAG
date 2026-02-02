@@ -7,7 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 import pandas as pd
 
 from semantic_distance_calculator import SemanticDistanceCalculator
-from utils import get_qs
+from utils import get_qs, get_question_text
 
 '''
 Params
@@ -50,8 +50,8 @@ def process_question(qid, es):
         return []
 
     print(qid)
-    question = benchmark_questions.loc[benchmark_questions['id'] == qid].iloc[0]['question']
-    
+    question = get_question_text(benchmark_questions, qid)
+
     ranked_sentences = dist_calc.get_top_k_sentences(question, es, 100)
 
     new_data = []

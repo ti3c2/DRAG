@@ -1,3 +1,7 @@
+benchmark_qs
+evidences_and_graphs
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
