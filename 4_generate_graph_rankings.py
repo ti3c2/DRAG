@@ -4,6 +4,7 @@ import sys
 from collections import defaultdict
 
 import pandas as pd
+from tqdm import tqdm
 
 from semantic_distance_calculator import SemanticDistanceCalculator
 from utils import get_qs, get_question_text
@@ -29,7 +30,7 @@ relationships_dict = defaultdict(list) #Maps question_id to a list of relationsh
 sentence_to_llm_rank = dict() #Maps a relationship string to [llm_rank, entity1, entity2]
 
 #Populate dictionaries from graph DataFrame
-for i, qid in enumerate(graph_df['question_id']):
+for i, qid in tqdm(enumerate(graph_df['question_id']), total=len(graph_df)):
     relationship = graph_df.iloc[i]['relationship']
     ent1 = graph_df.iloc[i]['entity1']
     ent2 = graph_df.iloc[i]['entity2']
@@ -49,7 +50,7 @@ for q in existing['question_id'].unique():
     existing_qs.add(q)
 
 #Compute semantic rankings for each new question
-for qid, rels in relationships_dict.items():
+for qid, rels in tqdm(relationships_dict.items(), total=len(relationships_dict)):
     if qid in existing_qs:
         continue
 
@@ -78,7 +79,7 @@ s_e_df = pd.read_csv(semantic_rank_file_name)
 q_to_rank = dict() #Maps question_id to a list of combined rank info
 
 #Combine LLM and semantic ranks
-for i, row in s_e_df.iterrows():
+for i, row in tqdm(s_e_df.iterrows(), total=len(s_e_df)):
     qid = row['question_id']
 
     if qid not in q_to_rank:
@@ -96,7 +97,7 @@ for i, row in s_e_df.iterrows():
 
 new_list = []
 
-for qid in q_to_rank:
+for qid in tqdm(q_to_rank, total=len(q_to_rank)):
     #Sort relationships by the sum of llm_rank and semantic_rank
     q_to_rank[qid].sort(key=lambda x: x[0])
     for i, val in enumerate(q_to_rank[qid]):

@@ -1,5 +1,6 @@
 benchmark_qs
 evidences_and_graphs
+*.csv
 
 
 # Byte-compiled / optimized / DLL files

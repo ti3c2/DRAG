@@ -5,6 +5,7 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 
 import pandas as pd
+from tqdm import tqdm
 
 from language_model import get_retriever
 from utils import get_qs
@@ -80,8 +81,9 @@ if len(unanswered_questions.keys()) > 0:
     if len(sys.argv) >= 5 and sys.argv[4] == 'multithread':
         print("Multithreading")
         with ThreadPoolExecutor(max_workers = os.cpu_count()-5) as executor:
-            executor.map(retrieve_and_write_csv, inputs)
+            for _ in tqdm(executor.map(retrieve_and_write_csv, inputs), total=len(inputs)):
+                pass
     #Otherwise process questions sequentially
     else:
-        for inp in inputs:
+        for inp in tqdm(inputs, total=len(inputs)):
             retrieve_and_write_csv(inp)

@@ -13,5 +13,6 @@ dependencies = [
     "scikit-learn>=1.8.0",
     "sentence-transformers>=5.2.1",
     "tenacity>=9.1.0",
+    "tqdm>=4.67.1",
     "transformers>=5.0.0",
 ]

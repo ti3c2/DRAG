@@ -8,6 +8,7 @@ import pandas as pd
 
 from language_model import get_retriever
 from relationship_graph import RelationshipGraph
+from tqdm import tqdm
 
 '''
 Params
@@ -27,7 +28,7 @@ lock = threading.Lock() #Used to ensure thread-safe writing to CSV files
 
 def retrieve_graph_and_write_csv(args):
     """
-    Given a question ID and its evidences, extract triplets, create a DataFrame, 
+    Given a question ID and its evidences, extract triplets, create a DataFrame,
     and write it to a CSV file in a thread-safe way.
     """
     qid, evidences = args
@@ -63,9 +64,9 @@ existing_graph_df = pd.read_csv(multigraph_file_name)
 completed_qs = set(existing_graph_df['question_id'].unique())
 
 #Organize evidences by question ID and rank
-for ind, row in evidences_df.iterrows():
+for ind, row in tqdm(evidences_df.iterrows(), total=len(evidences_df)):
     qid = row['question_id']
-    
+
     #Skip if question already processed
     if qid in completed_qs:
         continue
@@ -75,7 +76,7 @@ for ind, row in evidences_df.iterrows():
 
     if qid not in qid_to_evidences:
         qid_to_evidences[qid] = [None for _ in range(num_es)]
-        
+
     qid_to_evidences[qid][ranking-1] = evidence #Place evidence based on its ranking
 
 #Build list of inputs for processing
@@ -84,12 +85,14 @@ for qid, evidences in qid_to_evidences.items():
     inputs.append([qid, evidences])
 
 #Multithreading option based on command-line flag
-if len(sys.argv) >= 5 and sys.argv[4] == 'multithread':
+use_multithread = len(sys.argv) >= 5 and sys.argv[4] == 'multithread'
+if use_multithread:
     print("Multithreading")
     with ThreadPoolExecutor(max_workers=os.cpu_count() - 1) as executor:
-        executor.map(retrieve_graph_and_write_csv, inputs)
+        for _ in tqdm(executor.map(retrieve_graph_and_write_csv, inputs), total=len(inputs)):
+            pass
 else:
-    for inp in inputs:
+    for inp in tqdm(inputs, total=len(inputs)):
         retrieve_graph_and_write_csv(inp)
 
 #Load updated data from CSVs
@@ -97,7 +100,8 @@ multigraph_df = pd.read_csv(multigraph_file_name)
 e_df = pd.read_csv(graph_file_name)
 
 #For each question, consolidate duplicate relationships in the graph and write simplified version
-for qid in evidences_df['question_id'].unique():
+unique_evidences = evidences_df['question_id'].unique()
+for qid in tqdm(unique_evidences, total=len(unique_evidences)):
     if qid in e_df['question_id'].unique():
         continue
 
@@ -122,6 +126,6 @@ for qid in evidences_df['question_id'].unique():
     graph_list = []
     for i in range(len(entity1_vals)):
         graph_list.append([qid, entity1_vals[i], entity2_vals[i], relationships[i]])
-    
+
     graph_df = pd.DataFrame(graph_list)
     graph_df.to_csv(graph_file_name, header=None, encoding='utf-8', mode='a', index=False)
