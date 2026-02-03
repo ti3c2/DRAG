@@ -1,3 +1,4 @@
+import math
 from typing import Iterable, List
 
 from openai import OpenAI
@@ -31,6 +32,29 @@ class SemanticDistanceCalculator:
         )
         return [item.embedding for item in response.data]
 
+    def _normalize_one(self, value) -> str | None:
+        if value is None:
+            return None
+        if isinstance(value, float) and math.isnan(value):
+            return None
+        text = value if isinstance(value, str) else str(value)
+        text = text.strip()
+        return text if text else None
+
+    def _embed_with_fallback(self, texts: List[str]) -> List[List[float]]:
+        normalized_texts = [self._normalize_one(text) for text in texts]
+        valid_indices = [i for i, text in enumerate(normalized_texts) if text]
+        if not valid_indices:
+            print("No valid texts to embed")
+            return [[0.0] * settings.openai_embedding_dim for _ in texts]
+
+        valid_texts = [normalized_texts[i] for i in valid_indices]  # type: ignore[index]
+        valid_embeddings = self._embed_texts(valid_texts)
+        fallback = [[0.0] * settings.openai_embedding_dim for _ in texts]
+        for idx, emb in zip(valid_indices, valid_embeddings):
+            fallback[idx] = emb
+        return fallback
+
     def get_top_k_sentences(self, query, sentences, k):
         """
         Returns the top-k sentences most semantically similar to the query.
@@ -38,7 +62,7 @@ class SemanticDistanceCalculator:
         if not sentences:
             return []
 
-        embeddings = self._embed_texts([query, *sentences])
+        embeddings = self._embed_with_fallback([query, *sentences])
         similarity_scores = cosine_similarity([embeddings[0]], embeddings[1:])
 
         similarity_scores = list(similarity_scores[0])
