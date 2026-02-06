@@ -13,10 +13,10 @@ from settings import settings
 from utils import clean_list, clean_string
 
 # NOTE: Change MAX_RETRIES based on max number of attempts for calling APIs
-MAX_RETRIES = int(os.getenv("MAX_RETRIES", 40))
+MAX_RETRIES = settings.max_retries
 
 load_dotenv()
-num_es = int(sys.argv[3])
+num_es = settings.num_es
 
 
 class EvidenceRetrievalError(ValueError):

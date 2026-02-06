@@ -1,6 +1,6 @@
+import argparse
 import csv
 import os
-import sys
 import threading
 from concurrent.futures import ThreadPoolExecutor
 
@@ -10,11 +10,17 @@ from tqdm import tqdm
 from language_model import get_retriever
 from utils import get_qs
 
+parser = argparse.ArgumentParser()
+parser.add_argument("llm", help="LLM to be used")
+parser.add_argument("benchmark", help="Benchmark to be used")
+parser.add_argument("--multithread", action="store_true", help="Enable multithreading")
+args = parser.parse_args()
+
 '''
 Params
 '''
 retriever = get_retriever()
-csv_file_name = f"evidences_{sys.argv[1]}_{sys.argv[2]}.csv"
+csv_file_name = f"evidences_{args.llm}_{args.benchmark}.csv"
 
 '''
 Start of Program
@@ -30,7 +36,7 @@ def retrieve_and_write_csv(args):
     evidences = retriever.retrieve_evidences(question)
 
     evidences_with_ids = []
-    
+
     #Attach question ID and rank to each piece of evidence
     for evidence_ind, evidence in enumerate(evidences):
         evidences_with_ids.append([qid, evidence_ind + 1, evidence])
@@ -66,7 +72,7 @@ if len(unanswered_questions.keys()) > 0:
     print(f'Number of unanswered questions: {len(inputs)}')
 
     #Use a thread pool to parallelize processing
-    if len(sys.argv) >= 5 and sys.argv[4] == 'multithread':
+    if args.multithread:
         print("Multithreading")
         with ThreadPoolExecutor(max_workers=os.cpu_count() - 5) as executor:
             for _ in tqdm(executor.map(retrieve_and_write_csv, inputs), total=len(inputs)):

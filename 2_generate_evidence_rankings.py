@@ -1,6 +1,6 @@
+import argparse
 import csv
 import os
-import sys
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 
@@ -10,13 +10,19 @@ from tqdm import tqdm
 from semantic_distance_calculator import SemanticDistanceCalculator
 from utils import get_qs, get_question_text
 
+parser = argparse.ArgumentParser()
+parser.add_argument("llm", help="LLM to be used")
+parser.add_argument("benchmark", help="Benchmark to be used")
+parser.add_argument("--multithread", action="store_true", help="Enable multithreading")
+args = parser.parse_args()
+
 '''
 Params
 '''
 dist_calc = SemanticDistanceCalculator()
-evidences_file_name = f'evidences_{sys.argv[1]}_{sys.argv[2]}.csv'
-semantic_rank_file_name = f'evidences_semantic_{sys.argv[1]}_{sys.argv[2]}.csv'
-final_rank_file_name = f"evidences_final_{sys.argv[1]}_{sys.argv[2]}.csv"
+evidences_file_name = f'evidences_{args.llm}_{args.benchmark}.csv'
+semantic_rank_file_name = f'evidences_semantic_{args.llm}_{args.benchmark}.csv'
+final_rank_file_name = f"evidences_final_{args.llm}_{args.benchmark}.csv"
 benchmark_questions = get_qs([], True, True)
 
 '''
@@ -62,7 +68,7 @@ def process_question(qid, es):
     return new_data
 
 new_data_list = []
-if len(sys.argv) >= 5 and sys.argv[4] == 'multithread':
+if args.multithread:
     print("Multithreading")
     with ThreadPoolExecutor() as executor:
         for data in tqdm(

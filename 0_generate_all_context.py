@@ -45,7 +45,7 @@ def generate_commands():
         command_parts = [sys.executable, str(command), llm, benchmark, num_es]
 
         if args.multithread:
-            command_parts.append("multithread")
+            command_parts.append("--multithread")
 
         all_commands.append(command_parts)
     return all_commands
