@@ -50,7 +50,7 @@ def retrieve_graph_and_write_csv(args):
 
     #Append to CSV file
     with lock:
-        multigraph_df.to_csv(graph_file_name, header=None, encoding='utf-8', mode='a', index=False)
+        multigraph_df.to_csv(multigraph_file_name, header=None, encoding='utf-8', mode='a', index=False)
 
 if not os.path.isfile(multigraph_file_name):
     with open(multigraph_file_name, mode="w", newline="") as file:
