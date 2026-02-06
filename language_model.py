@@ -107,31 +107,61 @@ class LanguageModel(ABC):
         entity2_indices = []
         relationship_indices = []
 
-        while len(entity1_indices) != num_es or len(entity2_indices) != num_es or len(relationship_indices) != num_es:
+        response = None
+        best_triplets = []
+        best_triplet_count = 0
+        for n_attempt in range(settings.max_retries_extract_triplets):
             response = self.call_api(extract_triplets_prompt, system_message)
-            entity1_indices = [m.start() for m in re.finditer('Entity 1:', response)]
-            entity2_indices = [m.start() for m in re.finditer('Entity 2:', response)]
-            relationship_indices = [m.start() for m in re.finditer('Relationship:', response)]
+            if n_attempt > 0:
+                print(f"Attempt {n_attempt+1} Response:\n{response}\n==========\n\n")
+
+            if not response:
+                continue
+
+            parsed_triplets = []
+            for chunk in response.split("$$$"):
+                chunk = chunk.strip()
+                if not chunk:
+                    continue
+                match = re.search(
+                    r"Entity\s*\d\s*:\s*(.*?)\s*Entity\s*\d\s*:\s*(.*?)\s*Relationship\s*:\s*(.*)",
+                    chunk,
+                    re.IGNORECASE | re.DOTALL,
+                )
+                if not match:
+                    continue
+                ent1, ent2, rel = match.group(1), match.group(2), match.group(3)
+                parsed_triplets.append([ent1.strip(), ent2.strip(), rel.strip()])
+
+            triplet_count = min(len(parsed_triplets), num_es)
+
+            if triplet_count > best_triplet_count:
+                best_triplet_count = triplet_count
+                best_triplets = parsed_triplets
+
+            if triplet_count >= num_es:
+                break
+
+        if best_triplet_count == 0:
+            raise ValueError(
+                "Failed to extract any triplets after "
+                f"{settings.max_retries_extract_triplets} attempts"
+            )
 
         entity1_vals = []
         entity2_vals = []
         relationships = []
 
-        for i in range(len(entity1_indices)):
-            ent1_ind = entity1_indices[i]
-            ent2_ind = entity2_indices[i]
-            rel_ind = relationship_indices[i]
-            entity1 = response[ent1_ind+len('Entity 1:'):ent2_ind]
-            entity2 = response[ent2_ind+len('Entity 2:'):rel_ind]
+        if best_triplet_count < num_es:
+            print(
+                "Warning: extracted fewer than requested triplets "
+                f"({best_triplet_count}/{num_es})"
+            )
 
-            if i != len(entity1_indices) - 1:
-                rel = response[rel_ind+len('Relationship:'):entity1_indices[i+1]]
-            else:
-                rel = response[rel_ind+len('Relationship:'):]
-
-            entity1_vals.append(entity1.strip())
-            entity2_vals.append(entity2.strip())
-            relationships.append(rel.strip())
+        for ent1, ent2, rel in best_triplets[:best_triplet_count]:
+            entity1_vals.append(ent1)
+            entity2_vals.append(ent2)
+            relationships.append(rel)
 
         entity1_vals = clean_list(entity1_vals)
         entity2_vals = clean_list(entity2_vals)
@@ -231,12 +261,14 @@ class GPTRetriever(LanguageModel):
         ]
 
         attempt = 0
+        # print(f"System message: {system_message}\nPrompt: {prompt}\n==========\n\n")
         while attempt < MAX_RETRIES:
             try:
-                print(f"Seding request")
+                # print(f"Seding request")
                 response = client.chat.completions.create(
                     messages=messages,
-                    model=self.model
+                    model=self.model,
+                    temperature=settings.openai_temperature
                 )
                 return response.choices[0].message.content
             except Exception as e:
@@ -413,6 +445,8 @@ def get_retriever():
         - 'llama'    → returns LlamaRetriever()
         - 'deepseek' → returns DeepSeekRetriever()
     """
+    return GPTRetriever()
+
     llm_name = sys.argv[1]
 
     if llm_name == 'gpt':
