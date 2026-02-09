@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 import sys
 
 import pandas as pd
@@ -273,3 +274,20 @@ def get_question_text(benchmark_questions, qid):
     raise KeyError(
         f"Unsupported benchmark schema. Columns: {list(benchmark_questions.columns)}"
     )
+
+
+def find_file(
+    fname: str | Path,
+    base: Path,
+) -> Path | None:
+    if (fpath := Path(fname)).exists():
+        return fpath
+    files = list(base.rglob(f"*{fname}*", case_sensitive=False))
+    if len(files) > 1:
+        print(f"Multiple files found for '{fname}': {[f.relative_to(base) for f in files]}")
+    for path in files:
+        if path.is_file():
+            print(f"Found file for '{fname}': {path.relative_to(base)}")
+            return path
+    print(f"No file found for '{fname}'")
+    return None
