@@ -22,12 +22,13 @@ logger.setLevel(logging.INFO)
 class RagResponse(BaseModel):
     query: str
     answer: str
+    retrieved_contexts: List[str] = Field(default_factory=list)
 
 
 class GroundTruthItem(BaseModel):
     query: str
     answer: str
-    chunk_texts: List[str] = Field(default_factory=list)
+    ground_truth_contexts: List[str] = Field(default_factory=list)
 
 
 def create_ragas_evaluators(
@@ -133,8 +134,9 @@ async def evaluate_with_ragas(
         sample = SingleTurnSample(
             user_input=rag_response.query,
             response=rag_response.answer,
-            reference_contexts=ground_truth.chunk_texts,
             reference=ground_truth.answer,
+            reference_contexts=ground_truth.ground_truth_contexts,
+            retrieved_contexts=rag_response.retrieved_contexts,
         )
         if sample is not None:
             ragas_samples.append(sample)
@@ -284,19 +286,37 @@ async def evaluate_with_ragas(
 async def run_eval(
     rag_responses_file: str,
     ground_truths_file: str,
+    evidences_file: str,
     results_dir: str | None = None,
 ) -> tuple[Dict[str, float], Path]:
 
     df_rag_responses = pd.read_csv(rag_responses_file)
     df_ground_truths = pd.read_csv(ground_truths_file)
+    df_evidences = pd.read_csv(evidences_file)
 
-    # ['query_id', 'query_text', 'chunk_text', 'answer_text', 'response']
-    df_merged = df_ground_truths.merge(
-        df_rag_responses,
-        left_on="query_id",
-        right_on="question_id",
-        how="right",
+    df_ev_squeeze = (
+        df_evidences
+        .groupby("question_id")["evidence"]
+        .apply(lambda x: list(x))
+        .reset_index(name="evidence")
     )
+
+    # ['query_id', 'query_text', 'chunk_text', 'answer_text', 'response', 'evidence']
+    df_merged = (
+        df_ground_truths.merge(
+            df_rag_responses,
+            left_on="query_id",
+            right_on="question_id",
+            how="left",
+        )
+        .merge(
+            df_ev_squeeze,
+            left_on="question_id",
+            right_on="question_id",
+            how="left",
+        )
+    )
+
     if settings.ragas_max_evals > 0:
         df_merged = df_merged.head(settings.ragas_max_evals)
         logger.info(f"Using {len(df_merged)} samples for ragas evaluation")
@@ -305,6 +325,7 @@ async def run_eval(
         RagResponse(
             query=row["query_text"],
             answer=row["response"],
+            retrieved_contexts=row["evidence"],
         )
         for _, row in df_merged.iterrows()
     ]
@@ -313,7 +334,7 @@ async def run_eval(
         GroundTruthItem(
             query=row["query_text"],
             answer=row["answer_text"],
-            chunk_texts=[row["chunk_text"]],
+            ground_truth_contexts=[row["chunk_text"]],
         )
         for _, row in df_merged.iterrows()
     ]
@@ -343,6 +364,7 @@ if __name__ == "__main__":
         help="One or more RAG response CSV files to evaluate sequentially",
     )
     parser.add_argument("--ground_truths_file", type=str, required=True)
+    parser.add_argument("--evidences_file", type=str, required=True)
     args = parser.parse_args()
 
     results_base_path = Path(__file__).parent / "evidences_and_graphs"
@@ -351,10 +373,11 @@ if __name__ == "__main__":
     all_results = []
     intermediate_files = []
     ground_truths_file = find_file(args.ground_truths_file, results_base_path)
+    evidences_file = find_file(args.evidences_file, results_base_path)
     for rag_file in args.rag_responses_files:
         rag_file = find_file(rag_file, results_base_path)
         logger.info(f"Evaluating: {rag_file}")
-        results, results_file = asyncio.run(run_eval(rag_file, ground_truths_file))
+        results, results_file = asyncio.run(run_eval(rag_file, ground_truths_file, evidences_file))
         results["file"] = Path(rag_file).stem
         all_results.append(results)
         intermediate_files.append(results_file)

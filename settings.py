@@ -39,7 +39,11 @@ class Settings(BaseSettings):
     rag_num_graph: int = 0
 
     ragas_metrics: list[str] = [
+        "faithfulness",
         "nv_accuracy",
+        "nv_context_relevance",
+        "nv_response_groundedness",
+        "factual_correctness",
         "bleu_score",
         "rouge_score",
         "exact_match",
@@ -50,9 +54,9 @@ class Settings(BaseSettings):
     eval_llm_api_base: str = openai_api_base
     eval_embedding_model: str = openai_emb_model
     eval_embedding_model_api_base: str = openai_emb_api_base
-    ragas_max_workers: int = 128
+    ragas_max_workers: int = 64
     ragas_max_retries: int = 5
-    ragas_timeout: int = 600
+    ragas_timeout: int = 1200
     ragas_batch_size: int | None = None
 
     ragas_max_evals: int = 0
