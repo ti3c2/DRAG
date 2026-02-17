@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 import sys
 
 import pandas as pd
@@ -10,10 +11,10 @@ def clean_string(s):
     """
     s = s.replace('\n', '')
     s = s.replace('\\n', '')
-    
+
     if s.endswith('$$$'):
         s = s[:len(s) - 1]
-    
+
     return s
 
 def clean_list(lst):
@@ -30,7 +31,7 @@ def get_med_questions(existing_qs, include_all, as_df):
     """
     splits = {'train': 'data/train-00000-of-00001.parquet', 'test': 'data/test-00000-of-00001.parquet', 'validation': 'data/validation-00000-of-00001.parquet'}
     benchmark_questions = pd.read_parquet("hf://datasets/openlifescienceai/medmcqa/" + splits["validation"])
-    
+
     if not include_all:
         benchmark_questions = benchmark_questions[~benchmark_questions['id'].isin(existing_qs)]
     if as_df:
@@ -51,11 +52,11 @@ def get_mmlu_questions(existing_qs, include_all, as_df):
 
     if not include_all:
         benchmark_questions = benchmark_questions[~benchmark_questions['id'].isin(existing_qs)]
-    
+
     if as_df:
         return benchmark_questions
     unanswered_questions = {}
-    
+
     for ind, row in benchmark_questions.iterrows():
         qid = row['id']
 
@@ -77,11 +78,11 @@ def get_arcc_questions(existing_qs, include_all, as_df):
 
     if not include_all:
         benchmark_questions = benchmark_questions[~benchmark_questions['id'].isin(existing_qs)]
-    
+
     if as_df:
         return benchmark_questions
     unanswered_questions = {}
-    
+
     for ind, row in benchmark_questions.iterrows():
         qid = row['id']
 
@@ -90,7 +91,7 @@ def get_arcc_questions(existing_qs, include_all, as_df):
         choices = row['choices']
         question = row['question'] + " Choices: " + choices
         unanswered_questions[row['id']] = question
-    
+
     return unanswered_questions
 
 
@@ -124,7 +125,7 @@ def get_open_leaderboard_questions(existing_qs, include_all, as_df):
     Returns Open Leaderboard benchmark questions
     """
     benchmark_questions = pd.read_csv("benchmark_qs/open_leaderboard.csv")
-    
+
     if not include_all:
         benchmark_questions = benchmark_questions[~benchmark_questions['id'].isin(existing_qs)]
     if as_df:
@@ -134,7 +135,7 @@ def get_open_leaderboard_questions(existing_qs, include_all, as_df):
     for ind, row in benchmark_questions.iterrows():
         question = f"{row['question']}"
         unanswered_questions[row['id']] = question
-    
+
     return unanswered_questions
 
 def get_searchqa_questions(existing_qs, include_all, as_df):
@@ -147,11 +148,11 @@ def get_searchqa_questions(existing_qs, include_all, as_df):
     print(benchmark_questions)
     if not include_all:
         benchmark_questions = benchmark_questions[~benchmark_questions['id'].isin(existing_qs)]
-    
+
     if as_df:
         return benchmark_questions
     unanswered_questions = {}
-    
+
     for ind, row in benchmark_questions.iterrows():
         qid = row['id']
 
@@ -159,7 +160,7 @@ def get_searchqa_questions(existing_qs, include_all, as_df):
             continue
         question = row['question']
         unanswered_questions[row['id']] = question
-    
+
     return unanswered_questions
 
 
@@ -173,11 +174,11 @@ def get_web_questions(existing_qs, include_all, as_df):
     print(benchmark_questions)
     if not include_all:
         benchmark_questions = benchmark_questions[~benchmark_questions['id'].isin(existing_qs)]
-    
+
     if as_df:
         return benchmark_questions
     unanswered_questions = {}
-    
+
     for ind, row in benchmark_questions.iterrows():
         qid = row['id']
 
@@ -185,7 +186,7 @@ def get_web_questions(existing_qs, include_all, as_df):
             continue
         question = row['question']
         unanswered_questions[row['id']] = question
-    
+
     return unanswered_questions
 
 def get_gpqa(existing_qs, include_all, as_df=False):
@@ -197,11 +198,11 @@ def get_gpqa(existing_qs, include_all, as_df=False):
     print(benchmark_questions)
     if not include_all:
         benchmark_questions = benchmark_questions[~benchmark_questions['id'].isin(existing_qs)]
-    
+
     if as_df:
         return benchmark_questions
     unanswered_questions = {}
-    
+
     for ind, row in benchmark_questions.iterrows():
         qid = row['id']
 
@@ -209,9 +210,32 @@ def get_gpqa(existing_qs, include_all, as_df=False):
             continue
         question = row['question']
         unanswered_questions[row['id']] = question
-    
+
     return unanswered_questions
-    
+
+def get_squad(existing_qs, include_all, as_df=False, fname="squad-10k.csv"):
+    benchmark_questions = pd.read_csv(f"benchmark_qs/{fname}")
+
+    if not include_all:
+        benchmark_questions = benchmark_questions[~benchmark_questions['query_id'].isin(existing_qs)]
+    if as_df:
+        return benchmark_questions
+
+    unanswered_questions = {}
+    for ind, row in benchmark_questions.iterrows():
+        question = f"{row['query_text']}"
+        unanswered_questions[row['query_id']] = question
+
+    return unanswered_questions
+
+def get_squad_small(existing_qs, include_all, as_df=False, fname="squad-50.csv"):
+    return get_squad(
+        existing_qs=existing_qs,
+        include_all=include_all,
+        as_df=as_df,
+        fname=fname,
+    )
+
 def get_qs(existing_qs, include_all, as_df=False):
     """
     Returns benchmark questions based on command line argument
@@ -231,3 +255,39 @@ def get_qs(existing_qs, include_all, as_df=False):
         return get_web_questions(existing_qs, include_all, as_df)
     elif benchmark== "gpqa":
         return get_gpqa(existing_qs, include_all, as_df)
+    elif benchmark == "squad":
+        return get_squad(existing_qs, include_all, as_df)
+    elif benchmark == "squad-small":
+        return get_squad_small(existing_qs, include_all, as_df)
+
+def get_question_text(benchmark_questions, qid):
+    """
+    Returns the question text for a given question id from a benchmark DataFrame.
+    Handles differing column names across benchmarks.
+    """
+    if "id" in benchmark_questions.columns and "question" in benchmark_questions.columns:
+        return benchmark_questions.loc[benchmark_questions["id"] == qid].iloc[0]["question"]
+    if "query_id" in benchmark_questions.columns and "query_text" in benchmark_questions.columns:
+        return benchmark_questions.loc[benchmark_questions["query_id"] == qid].iloc[0][
+            "query_text"
+        ]
+    raise KeyError(
+        f"Unsupported benchmark schema. Columns: {list(benchmark_questions.columns)}"
+    )
+
+
+def find_file(
+    fname: str | Path,
+    base: Path,
+) -> Path | None:
+    if (fpath := Path(fname)).exists():
+        return fpath
+    files = list(base.rglob(f"*{fname}*", case_sensitive=False))
+    if len(files) > 1:
+        print(f"Multiple files found for '{fname}': {[f.relative_to(base) for f in files]}")
+    for path in files:
+        if path.is_file():
+            print(f"Found file for '{fname}': {path.relative_to(base)}")
+            return path
+    print(f"No file found for '{fname}'")
+    return None

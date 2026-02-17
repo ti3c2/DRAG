@@ -1,22 +1,31 @@
+import argparse
 import csv
 import os
-import sys
 from collections import defaultdict
 
 import pandas as pd
+from tqdm import tqdm
 
 from semantic_distance_calculator import SemanticDistanceCalculator
-from utils import get_qs
+from utils import get_qs, get_question_text
+from settings import settings
+
+
+parser = argparse.ArgumentParser()
+parser.add_argument("llm", help="LLM to be used")
+parser.add_argument("benchmark", help="Benchmark to be used")
+parser.add_argument("--multithread", action="store_true", help="Enable multithreading")
+args = parser.parse_args()
 
 '''
 Params
 '''
 dist_calc = SemanticDistanceCalculator()
-graph_file_name = f'graph_{sys.argv[1]}_{sys.argv[2]}.csv'
-semantic_rank_file_name = f'graph_semantic_{sys.argv[1]}_{sys.argv[2]}2.csv'
-final_rank_file_name = f"graph_final_{sys.argv[1]}_{sys.argv[2]}2.csv"
+graph_file_name = f'graph_{args.llm}_{args.benchmark}.csv'
+semantic_rank_file_name = f'graph_semantic_{args.llm}_{args.benchmark}.csv'
+final_rank_file_name = f"graph_final_{args.llm}_{args.benchmark}.csv"
 benchmark_questions = get_qs([], True, True)
-num_es = sys.argv[3]
+num_es = settings.num_es
 
 '''
 Start of Program
@@ -29,7 +38,7 @@ relationships_dict = defaultdict(list) #Maps question_id to a list of relationsh
 sentence_to_llm_rank = dict() #Maps a relationship string to [llm_rank, entity1, entity2]
 
 #Populate dictionaries from graph DataFrame
-for i, qid in enumerate(graph_df['question_id']):
+for i, qid in tqdm(enumerate(graph_df['question_id']), total=len(graph_df)):
     relationship = graph_df.iloc[i]['relationship']
     ent1 = graph_df.iloc[i]['entity1']
     ent2 = graph_df.iloc[i]['entity2']
@@ -49,12 +58,12 @@ for q in existing['question_id'].unique():
     existing_qs.add(q)
 
 #Compute semantic rankings for each new question
-for qid, rels in relationships_dict.items():
+for qid, rels in tqdm(relationships_dict.items(), total=len(relationships_dict)):
     if qid in existing_qs:
         continue
 
     #Retrieve the original question text for computing semantic distance
-    question = benchmark_questions.loc[benchmark_questions['id'] == qid].iloc[0]['question']
+    question = get_question_text(benchmark_questions, qid)
 
     #Rank sentences based on semantic similarity to the question
     ranked_sentences = dist_calc.get_top_k_sentences(question, rels, num_es)
@@ -64,10 +73,10 @@ for qid, rels in relationships_dict.items():
         new_data.append([
             qid,
             sentence_to_llm_rank[sentence][0],
+            sentence,
             sentence_to_llm_rank[sentence][1],
             sentence_to_llm_rank[sentence][2],
-            sentence,
-            int(i+1) #semantic_rank
+            int(i + 1)  # semantic_rank
         ])
 
     new_df = pd.DataFrame(new_data)
@@ -78,7 +87,7 @@ s_e_df = pd.read_csv(semantic_rank_file_name)
 q_to_rank = dict() #Maps question_id to a list of combined rank info
 
 #Combine LLM and semantic ranks
-for i, row in s_e_df.iterrows():
+for i, row in tqdm(s_e_df.iterrows(), total=len(s_e_df)):
     qid = row['question_id']
 
     if qid not in q_to_rank:
@@ -96,7 +105,7 @@ for i, row in s_e_df.iterrows():
 
 new_list = []
 
-for qid in q_to_rank:
+for qid in tqdm(q_to_rank, total=len(q_to_rank)):
     #Sort relationships by the sum of llm_rank and semantic_rank
     q_to_rank[qid].sort(key=lambda x: x[0])
     for i, val in enumerate(q_to_rank[qid]):
@@ -116,5 +125,5 @@ for qid in q_to_rank:
         ])
 
 final_rank_header = ['question_id', 'final_rank', 'semantic_rank', 'llm_rank', 'entity1', 'entity2', 'relationship']
-new_df = pd.DataFrame(new_list)
-new_df.to_csv(final_rank_file_name, header=final_rank_header, encoding='utf-8', index=False)
+new_df = pd.DataFrame(new_list, columns=final_rank_header)
+new_df.to_csv(final_rank_file_name, header=True, encoding='utf-8', index=False)

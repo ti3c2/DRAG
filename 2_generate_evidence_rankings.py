@@ -1,21 +1,28 @@
+import argparse
 import csv
 import os
-import sys
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 
 import pandas as pd
+from tqdm import tqdm
 
 from semantic_distance_calculator import SemanticDistanceCalculator
-from utils import get_qs
+from utils import get_qs, get_question_text
+
+parser = argparse.ArgumentParser()
+parser.add_argument("llm", help="LLM to be used")
+parser.add_argument("benchmark", help="Benchmark to be used")
+parser.add_argument("--multithread", action="store_true", help="Enable multithreading")
+args = parser.parse_args()
 
 '''
 Params
 '''
 dist_calc = SemanticDistanceCalculator()
-evidences_file_name = f'evidences_{sys.argv[1]}_{sys.argv[2]}.csv'
-semantic_rank_file_name = f'evidences_semantic_{sys.argv[1]}_{sys.argv[2]}.csv'
-final_rank_file_name = f"evidences_final_{sys.argv[1]}_{sys.argv[2]}.csv"
+evidences_file_name = f'evidences_{args.llm}_{args.benchmark}.csv'
+semantic_rank_file_name = f'evidences_semantic_{args.llm}_{args.benchmark}.csv'
+final_rank_file_name = f"evidences_final_{args.llm}_{args.benchmark}.csv"
 benchmark_questions = get_qs([], True, True)
 
 '''
@@ -26,7 +33,7 @@ evidences = defaultdict(list) #Maps question_id to list of evidence strings
 sentence_to_llm_rank = dict() #Maps each evidence string to its LLM-generated relevance rank
 
 #Populate the above data structures from the input DataFrame
-for i, qid in enumerate(evidences_df['question_id']):
+for i, qid in tqdm(enumerate(evidences_df['question_id']), total=len(evidences_df)):
     evidence = evidences_df.iloc[i]['evidence']
     evidences[qid].append(evidence)
     sentence_to_llm_rank[evidence] = evidences_df.iloc[i]['evidence_relevance_rank']
@@ -50,8 +57,8 @@ def process_question(qid, es):
         return []
 
     print(qid)
-    question = benchmark_questions.loc[benchmark_questions['id'] == qid].iloc[0]['question']
-    
+    question = get_question_text(benchmark_questions, qid)
+
     ranked_sentences = dist_calc.get_top_k_sentences(question, es, 100)
 
     new_data = []
@@ -61,13 +68,16 @@ def process_question(qid, es):
     return new_data
 
 new_data_list = []
-if len(sys.argv) >= 5 and sys.argv[4] == 'multithread':
+if args.multithread:
     print("Multithreading")
     with ThreadPoolExecutor() as executor:
-        for data in executor.map(lambda qid_es: process_question(qid_es[0], qid_es[1]), evidences.items()):
+        for data in tqdm(
+            executor.map(lambda qid_es: process_question(qid_es[0], qid_es[1]), evidences.items()),
+            total=len(evidences),
+        ):
             new_data_list.extend(data)
 else:
-    for qid, es in evidences.items():
+    for qid, es in tqdm(evidences.items(), total=len(evidences)):
         data = process_question(qid, es)
         new_data_list.extend(data)
 
@@ -80,7 +90,7 @@ s_e_df = pd.read_csv(semantic_rank_file_name)
 q_to_rank = defaultdict(list) #Maps question_id to list of combined rank info
 
 #Compute combined ranks (llm_rank + semantic_rank)
-for i, row in s_e_df.iterrows():
+for i, row in tqdm(s_e_df.iterrows(), total=len(s_e_df)):
     qid = row['question_id']
     q_to_rank[qid].append([
         row['llm_rank'] + row['semantic_rank'], #Combined score

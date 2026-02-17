@@ -79,6 +79,23 @@ Supported `benchmark` options:
 
     NOTE: In our paper, we used [Harness](https://github.com/EleutherAI/lm-evaluation-harness) for response generation; this framework also provides evaluation. 
 
+6. Run RAGAS evaluation:
+
+```bash
+python ragas_eval.py \
+  --rag_responses_file <path/to/rag_responses.csv> \
+  --ground_truths_file <path/to/ground_truths.csv>
+```
+
+Expected CSV columns:
+- `rag_responses_file`: `query_id`, `query_text`, `response`
+- `ground_truths_file`: `question_id`, `query_text`, `answer_text`, `chunk_text`
+
+RAGAS uses the following settings in `settings.py` (override via `.env` if needed):
+- `EVAL_LLM` / `EVAL_LLM_API_BASE`
+- `EVAL_EMBEDDING_MODEL` / `EVAL_EMBEDDING_MODEL_API_BASE`
+- `RAGAS_METRICS`, `RAGAS_MAX_WORKERS`, `RAGAS_MAX_RETRIES`, `RAGAS_TIMEOUT`
+
 
 ## Contribution
 We welcome contributions - please feel open an issue, or a pull request, if you have any suggestions/improvements.

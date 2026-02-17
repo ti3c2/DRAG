@@ -1,19 +1,26 @@
+import argparse
 import csv
 import os
-import sys
 import threading
 from concurrent.futures import ThreadPoolExecutor
 
 import pandas as pd
+from tqdm import tqdm
 
 from language_model import get_retriever
 from utils import get_qs
+
+parser = argparse.ArgumentParser()
+parser.add_argument("llm", help="LLM to be used")
+parser.add_argument("benchmark", help="Benchmark to be used")
+parser.add_argument("--multithread", action="store_true", help="Enable multithreading")
+args = parser.parse_args()
 
 '''
 Params
 '''
 small_scale_model = get_retriever()
-csv_file_name = f'res_no_context_{sys.argv[1]}_{sys.argv[2]}.csv'
+csv_file_name = f'res_no_context_{args.llm}_{args.benchmark}.csv'
 
 '''
 Start of Program
@@ -29,8 +36,8 @@ def retrieve_and_write_csv(args):
     evidences_with_ids = []
 
     evidences_with_ids.append([qid, response])
-    evidences_df = pd.DataFrame(evidences_with_ids) 
-    
+    evidences_df = pd.DataFrame(evidences_with_ids)
+
     #Write response to CSV file (thread-safe)
     with lock:
         evidences_df.to_csv(csv_file_name, header=None, encoding='utf-8', mode='a', index=False)
@@ -57,11 +64,12 @@ if len(unanswered_questions.keys()) > 0:
         inputs.append((k, v))
     print(f'Number of unanswered questions: {len(inputs)}')
     #Use multithreading if specified via command-line argument
-    if len(sys.argv) >= 5 and sys.argv[4] == 'multithread':
+    if args.multithread:
         print("Multithreading")
         with ThreadPoolExecutor(max_workers = os.cpu_count()-5) as executor:
-            executor.map(retrieve_and_write_csv, inputs)
+            for _ in tqdm(executor.map(retrieve_and_write_csv, inputs), total=len(inputs)):
+                pass
     #Otherwise process questions sequentially
     else:
-        for inp in inputs:
+        for inp in tqdm(inputs, total=len(inputs)):
             retrieve_and_write_csv(inp)
